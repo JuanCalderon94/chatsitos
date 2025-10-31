@@ -2,7 +2,7 @@
 <html lang="es">
   <head>
     <meta charset="UTF-8" />
-    <title>Chat en tiempo real 1</title>
+    <title>Chat en tiempo real</title>
     <style>
       body {
         font-family: Arial, sans-serif;
@@ -52,8 +52,6 @@
         font-size: 16px;
         border-top: 1px solid #ccc;
       }
-
-      /* 🔹 Nuevo: historial */
       #history {
         max-height: 100px;
         overflow-y: auto;
@@ -81,7 +79,6 @@
         id="messageInput"
         placeholder="Escribe un mensaje y presiona Enter..."
       />
-      <!-- 🔹 NUEVO: historial en vivo -->
       <div id="history">
         <h4>Historial de mensajes</h4>
         <div id="historyContent"></div>
@@ -90,62 +87,89 @@
 
     <script src="https://js.pusher.com/8.4.0/pusher.min.js"></script>
     <script>
-      const senderId = Math.random().toString(36).substring(2, 15);
-      const BACKEND_URL = "https://back2-lyuk.onrender.com/";
+      // ================================
+      // 🔹 CONFIGURACIÓN
+      // ================================
+      const BACKEND_URL = "https://back2-lyuk.onrender.com/"; // cambia si usas otro backend
+      const CHANNEL = "josue-juanito";
 
-      const pusherJuan = new Pusher("5398827de005ac67b6b2", { cluster: "us2" });
-      const channelJuan = pusherJuan.subscribe("josue-juanito");
+      // ================================
+      // 🔹 IDENTIDAD DEL USUARIO
+      // ================================
+      const senderId =
+        localStorage.getItem("chat_senderId") ||
+        Math.random().toString(36).substring(2, 15);
+      localStorage.setItem("chat_senderId", senderId);
 
-      const pusherMain = new Pusher("c87165fe436b0a5d5ba0", { cluster: "mt1" });
-      const channelMain = pusherMain.subscribe("josue-juanito");
+      let displayName = localStorage.getItem("chat_displayName");
+      if (!displayName) {
+        displayName = prompt("Escribe tu nombre para el chat:") || "Anónimo";
+        localStorage.setItem("chat_displayName", displayName);
+      }
+
+      // ================================
+      // 🔹 PUSHER CONFIG
+      // ================================
+      const pusher = new Pusher("5398827de005ac67b6b2", { cluster: "us2" });
+      const channel = pusher.subscribe(CHANNEL);
 
       const messagesDiv = document.getElementById("messages");
       const messageInput = document.getElementById("messageInput");
       const historyDiv = document.getElementById("historyContent");
 
-      // Cargar historial
+      // ================================
+      // 🔹 CARGAR HISTORIAL
+      // ================================
       window.addEventListener("load", () => {
         const savedMessages = JSON.parse(localStorage.getItem("chatHistory") || "[]");
         savedMessages.forEach((msg) => {
-          addMessage(msg.text, msg.type, false);
-          updateHistory();
+          addMessage(msg.text, msg.type, false, msg.name, msg.fecha);
         });
+        updateHistory();
+
+        // cargar desde backend (base de datos)
+        fetch(BACKEND_URL + "mensajes")
+          .then((res) => res.json())
+          .then((data) => {
+            data.forEach((msg) => {
+              const type = msg.sender_id === senderId ? "own" : "other";
+              const nombre = msg.usuario || msg.name || "Usuario";
+              const texto = msg.mensaje || msg.message;
+              const fecha = msg.fecha || msg.fecha_envio || msg.created_at;
+              addMessage(texto, type, false, nombre, fecha);
+            });
+          })
+          .catch((err) =>
+            console.error("❌ Error cargando historial desde backend:", err)
+          );
       });
 
-      function handleIncoming(data) {
+      // ================================
+      // 🔹 RECIBIR MENSAJES EN TIEMPO REAL
+      // ================================
+      channel.bind("my-event", function (data) {
         if (!data) return;
-        if (data.senderId && data.senderId === senderId) return;
-        addMessage(data.message, "other");
-      }
+        if (data.senderId === senderId) return;
+        addMessage(
+          data.message,
+          "other",
+          true,
+          data.name || "Usuario",
+          data.fecha || new Date().toISOString()
+        );
+      });
 
-      channelJuan.bind("my-event", handleIncoming);
-      channelMain.bind("my-event", handleIncoming);
-
-      pusherJuan.connection.bind("connected", () =>
-        console.log("pusherJuan connected (us2)")
-      );
-      pusherMain.connection.bind("connected", () =>
-        console.log("pusherMain connected (mt1)")
-      );
-
+      // ================================
+      // 🔹 ENVIAR MENSAJES
+      // ================================
       messageInput.addEventListener("keypress", function (e) {
         if (e.key === "Enter" && messageInput.value.trim() !== "") {
           const message = messageInput.value.trim();
-          addMessage(message, "own");
+          addMessage(message, "own", true, displayName);
           sendMessage(message);
           messageInput.value = "";
         }
       });
-
-      function addMessage(text, type, save = true) {
-        const msgDiv = document.createElement("div");
-        msgDiv.classList.add("message", type);
-        msgDiv.textContent = text;
-        messagesDiv.appendChild(msgDiv);
-        messagesDiv.scrollTop = messagesDiv.scrollHeight;
-        if (save) saveMessage(text, type);
-        updateHistory();
-      }
 
       function sendMessage(message) {
         fetch(BACKEND_URL, {
@@ -154,29 +178,75 @@
           body: JSON.stringify({
             message,
             senderId,
-            channel: "josue-juanito",
+            channel: CHANNEL,
+            name: displayName,
           }),
         }).catch((e) => console.error("Error enviando al backend:", e));
-
-        setTimeout(() => {
-          addMessage(message, "other");
-        }, 800);
       }
 
-      function saveMessage(text, type) {
+      // ================================
+      // 🔹 AGREGAR MENSAJE A LA UI
+      // ================================
+      function addMessage(text, type, save = true, name = null, fecha = null) {
+        const msgWrapper = document.createElement("div");
+        msgWrapper.classList.add("message", type);
+
+        const header = document.createElement("div");
+        header.style.fontSize = "12px";
+        header.style.marginBottom = "4px";
+        header.style.opacity = "0.8";
+        header.textContent =
+          name && type === "own" ? `Tú (${name})` : name || (type === "own" ? "Tú" : "Otro");
+
+        const body = document.createElement("div");
+        body.textContent = text;
+
+        const footer = document.createElement("div");
+        footer.style.fontSize = "11px";
+        footer.style.marginTop = "6px";
+        footer.style.opacity = "0.7";
+        const fechaObj = fecha ? new Date(fecha) : new Date();
+        footer.textContent = fechaObj.toLocaleString();
+
+        msgWrapper.appendChild(header);
+        msgWrapper.appendChild(body);
+        msgWrapper.appendChild(footer);
+
+        messagesDiv.appendChild(msgWrapper);
+        messagesDiv.scrollTop = messagesDiv.scrollHeight;
+
+        if (save) saveMessage(text, type, name, fechaObj.toISOString());
+        updateHistory();
+      }
+
+      // ================================
+      // 🔹 GUARDAR EN HISTORIAL LOCAL
+      // ================================
+      function saveMessage(text, type, name = null, fecha = null) {
         let history = JSON.parse(localStorage.getItem("chatHistory") || "[]");
-        history.push({ text, type });
+        history.push({
+          text,
+          type,
+          name: name || (type === "own" ? displayName : "Otro"),
+          fecha: fecha || new Date().toISOString(),
+        });
         if (history.length > 50) history.shift();
         localStorage.setItem("chatHistory", JSON.stringify(history));
       }
 
-      // 🔹 NUEVO: mostrar historial en tiempo real
+      // ================================
+      // 🔹 ACTUALIZAR VISTA DE HISTORIAL
+      // ================================
       function updateHistory() {
         const history = JSON.parse(localStorage.getItem("chatHistory") || "[]");
         historyDiv.innerHTML = "";
         history.forEach((msg) => {
           const p = document.createElement("p");
-          p.textContent = (msg.type === "own" ? "Tú: " : "Otro: ") + msg.text;
+          const time = new Date(msg.fecha).toLocaleTimeString();
+          p.textContent =
+            (msg.type === "own" ? "Tú" : msg.name || "Otro") +
+            ` (${time}): ` +
+            msg.text;
           historyDiv.appendChild(p);
         });
         historyDiv.scrollTop = historyDiv.scrollHeight;
