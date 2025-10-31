@@ -1,211 +1,186 @@
 <!DOCTYPE html>
 <html lang="es">
-<head>
-  <meta charset="UTF-8">
-  <title>Chat en tiempo real 1</title>
-  <style>
-    body {
-  font-family: "Segoe UI", Arial, sans-serif;
-  background: linear-gradient(135deg, #0a0a0a, #1e3a8a);
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  height: 100vh;
-  margin: 0;
-}
+  <head>
+    <meta charset="UTF-8" />
+    <title>Chat en tiempo real 1</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        background-color: #f1f1f1;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+      }
+      #chat-container {
+        width: 400px;
+        background: white;
+        border-radius: 10px;
+        box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+      }
+      #messages {
+        flex: 1;
+        padding: 15px;
+        overflow-y: auto;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+      .message {
+        padding: 8px 12px;
+        border-radius: 15px;
+        max-width: 70%;
+        word-wrap: break-word;
+      }
+      .own {
+        background-color: #0084ff;
+        color: white;
+        align-self: flex-end;
+      }
+      .other {
+        background-color: #e5e5ea;
+        color: black;
+        align-self: flex-start;
+      }
+      input {
+        border: none;
+        padding: 10px;
+        outline: none;
+        font-size: 16px;
+        border-top: 1px solid #ccc;
+      }
 
-/* ======== CONTENEDOR DEL CHAT ======== */
-#chat-container {
-  width: 420px;
-  height: 600px;
-  background: #ffffff;
-  border-radius: 20px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  animation: fadeIn 0.5s ease;
-}
+      /* 🔹 Nuevo: historial */
+      #history {
+        max-height: 100px;
+        overflow-y: auto;
+        font-size: 12px;
+        background-color: #fafafa;
+        border-top: 1px solid #ccc;
+        padding: 5px 10px;
+      }
+      #history h4 {
+        margin: 5px 0;
+        font-size: 13px;
+        color: #444;
+      }
+      #history p {
+        margin: 2px 0;
+        color: #333;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="chat-container">
+      <div id="messages"></div>
+      <input
+        type="text"
+        id="messageInput"
+        placeholder="Escribe un mensaje y presiona Enter..."
+      />
+      <!-- 🔹 NUEVO: historial en vivo -->
+      <div id="history">
+        <h4>Historial de mensajes</h4>
+        <div id="historyContent"></div>
+      </div>
+    </div>
 
-@keyframes fadeIn {
-  from { opacity: 0; transform: translateY(20px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
-/* ======== ENCABEZADO ======== */
-#header {
-  background: linear-gradient(135deg, #1e3a8a, #2563eb);
-  color: white;
-  padding: 15px;
-  text-align: center;
-  font-weight: bold;
-  font-size: 18px;
-  letter-spacing: 0.5px;
-}
-
-/* ======== ZONA DE MENSAJES ======== */
-#messages {
-  flex: 1;
-  padding: 20px;
-  overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  background: #f5f7fa;
-  scroll-behavior: smooth;
-}
-
-/* ======== BURBUJAS DE MENSAJE ======== */
-.message {
-  padding: 10px 15px;
-  border-radius: 18px;
-  max-width: 75%;
-  word-wrap: break-word;
-  font-size: 15px;
-  line-height: 1.4;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-  transition: transform 0.2s ease;
-}
-
-.message:hover {
-  transform: scale(1.03);
-}
-
-/* Mensaje propio */
-.own {
-  background: linear-gradient(135deg, #0066ff, #3b82f6);
-  color: white;
-  align-self: flex-end;
-  border-bottom-right-radius: 5px;
-}
-
-/* Mensaje de otros */
-.other {
-  background: #e5e7eb;
-  color: #111827;
-  align-self: flex-start;
-  border-bottom-left-radius: 5px;
-}
-
-/* ======== CAJA DE ENTRADA ======== */
-#input-container {
-  display: flex;
-  align-items: center;
-  padding: 10px 15px;
-  border-top: 1px solid #ccc;
-  background-color: #ffffff;
-  gap: 10px;
-}
-
-/* Campo de texto */
-input {
-  flex: 1;
-  border: none;
-  padding: 12px 16px;
-  font-size: 16px;
-  border-radius: 25px;
-  background-color: #f1f3f6;
-  outline: none;
-  transition: all 0.3s ease;
-}
-
-input:focus {
-  background-color: #e0e7ff;
-  box-shadow: 0 0 0 2px #2563eb4d;
-}
-
-/* ======== BOTÓN DE ENVIAR (CIRCULAR) ======== */
-#send-btn {
-  width: 45px;
-  height: 45px;
-  border: none;
-  border-radius: 50%;
-  background: linear-gradient(135deg, #1e3a8a, #2563eb);
-  color: white;
-  font-size: 20px;
-  cursor: pointer;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  transition: background 0.3s ease, transform 0.2s ease, box-shadow 0.2s ease;
-}
-
-#send-btn:hover {
-  background: linear-gradient(135deg, #2563eb, #3b82f6);
-  transform: scale(1.1);
-  box-shadow: 0 4px 10px rgba(37, 99, 235, 0.4);
-}
-
-#send-btn:active {
-  transform: scale(0.95);
-  box-shadow: 0 2px 6px rgba(37, 99, 235, 0.3);
-}
-  </style>
-</head>
-<body>
-  <div id="chat-container">
-    <div id="messages"></div>
-    <input type="text" id="messageInput" placeholder="Escribe un mensaje y presiona Enter...">
-  </div>
-
-  <script src="https://js.pusher.com/8.4.0/pusher.min.js"></script>
-  <script>
-      // ID único para distinguir quién envió el mensaje
+    <script src="https://js.pusher.com/8.4.0/pusher.min.js"></script>
+    <script>
       const senderId = Math.random().toString(36).substring(2, 15);
+      const BACKEND_URL = "https://back2-lyuk.onrender.com/";
 
-      const pusher = new Pusher("5398827de005ac67b6b2", {
-        cluster: "us2",
-      });
+      const pusherJuan = new Pusher("5398827de005ac67b6b2", { cluster: "us2" });
+      const channelJuan = pusherJuan.subscribe("josue-juanito");
 
-      const channel = pusher.subscribe("my-channel");
+      const pusherMain = new Pusher("c87165fe436b0a5d5ba0", { cluster: "mt1" });
+      const channelMain = pusherMain.subscribe("josue-juanito");
+
       const messagesDiv = document.getElementById("messages");
       const messageInput = document.getElementById("messageInput");
+      const historyDiv = document.getElementById("historyContent");
 
-      // Recibir mensajes
-      channel.bind("my-event", function (data) {
-        console.log("Mensaje recibido:", data); // Debug
-
-        // Extraer mensaje y senderId
-        const message = data.message; // Usar .message consistentemente
-        const senderIdReceived = data.senderId;
-
-        // Solo mostrar si NO es mi propio mensaje
-        if (senderIdReceived !== senderId) {
-          addMessage(message, "other");
-        }
+      // Cargar historial
+      window.addEventListener("load", () => {
+        const savedMessages = JSON.parse(localStorage.getItem("chatHistory") || "[]");
+        savedMessages.forEach((msg) => {
+          addMessage(msg.text, msg.type, false);
+          updateHistory();
+        });
       });
 
-      // Enviar mensajes con Enter
+      function handleIncoming(data) {
+        if (!data) return;
+        if (data.senderId && data.senderId === senderId) return;
+        addMessage(data.message, "other");
+      }
+
+      channelJuan.bind("my-event", handleIncoming);
+      channelMain.bind("my-event", handleIncoming);
+
+      pusherJuan.connection.bind("connected", () =>
+        console.log("pusherJuan connected (us2)")
+      );
+      pusherMain.connection.bind("connected", () =>
+        console.log("pusherMain connected (mt1)")
+      );
+
       messageInput.addEventListener("keypress", function (e) {
         if (e.key === "Enter" && messageInput.value.trim() !== "") {
           const message = messageInput.value.trim();
-          addMessage(message, "own"); // Mostrar localmente
-          sendMessage(message); // Enviar al backend
+          addMessage(message, "own");
+          sendMessage(message);
           messageInput.value = "";
         }
       });
 
-      // Agregar mensaje al chat
-      function addMessage(text, type) {
+      function addMessage(text, type, save = true) {
         const msgDiv = document.createElement("div");
         msgDiv.classList.add("message", type);
         msgDiv.textContent = text;
         messagesDiv.appendChild(msgDiv);
         messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        if (save) saveMessage(text, type);
+        updateHistory();
       }
 
-      // Enviar mensaje al backend Flask
       function sendMessage(message) {
-        fetch("https://maains-py-12.onrender.com/send_messsage", {
+        fetch(BACKEND_URL, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            message: message,
-            senderId: senderId,
-            channel: "my-channel", // Asegura que use el mismo canal
+            message,
+            senderId,
+            channel: "josue-juanito",
           }),
+        }).catch((e) => console.error("Error enviando al backend:", e));
+
+        setTimeout(() => {
+          addMessage(message, "other");
+        }, 800);
+      }
+
+      function saveMessage(text, type) {
+        let history = JSON.parse(localStorage.getItem("chatHistory") || "[]");
+        history.push({ text, type });
+        if (history.length > 50) history.shift();
+        localStorage.setItem("chatHistory", JSON.stringify(history));
+      }
+
+      // 🔹 NUEVO: mostrar historial en tiempo real
+      function updateHistory() {
+        const history = JSON.parse(localStorage.getItem("chatHistory") || "[]");
+        historyDiv.innerHTML = "";
+        history.forEach((msg) => {
+          const p = document.createElement("p");
+          p.textContent = (msg.type === "own" ? "Tú: " : "Otro: ") + msg.text;
+          historyDiv.appendChild(p);
         });
+        historyDiv.scrollTop = historyDiv.scrollHeight;
       }
     </script>
-</body>
+  </body>
 </html>
